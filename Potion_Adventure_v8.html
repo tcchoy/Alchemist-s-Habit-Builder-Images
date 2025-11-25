@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>文字魔藥店 ｜ 水彩手繪風單頁小遊戲</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@200..900&display=swap" rel="stylesheet');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Chiron GoRound TC', sans-serif;
+    background: linear-gradient(135deg, #f9f0e8 0%, #e8f0f5 100%);
+    color: #c27f4f;
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+  body::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><defs><filter id="watercolor"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="4"/><feDiffuseLighting lighting-color="%23fff" surfaceScale="4"><feDistantLight azimuth="45" elevation="60"/></feDiffuseLighting><feComponentTransfer><feFuncA type="linear" slope="0.3"/></feComponentTransfer></filter></defs><rect width="100" height="100" fill="%23fff8f0" filter="url(%23watercolor)"/></svg>') repeat;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  
+  .container { max-width: 1100px; margin: 0 auto; padding: 20px; position: relative; z-index: 1; }
+  header {
+    text-align: center; margin-bottom: 20px; background: rgba(255,255,255,0.7);
+    border-radius: 20px; padding: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  }
+  h1 {
+    font-family: 'Chiron GoRound TC', serif; font-size: 3.5em; color: #85522d;
+    text-shadow: 2px 2px 8px rgba(142,36,170,0.2);
+  }
+  h1::after { content: " 魔藥小舖 "; display: block; font-size: 0.4em; color: #666; margin-top: 8px; }
+  
+  .game-area { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px; }
+  .panel {
+    background: rgba(255,255,255,0.85); border-radius: 20px; padding: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15); backdrop-filter: blur(5px);
+    border: 1px solid rgba(255,255,255,0.6);
+  }
+  .panel h2 {
+    font-family: 'Chiron GoRound TC', serif; color: #6d4c41; margin-bottom: 15px;
+    text-align: center; font-size: 1.8em;
+  }
+  .panel h3 { font-size: 1.2em; color: #8d6e63; margin: 15px 0 10px 0; }
+  
+  button {
+    background: linear-gradient(to bottom, #ffecb3, #ffb74d); border: none;
+    padding: 10px 16px; border-radius: 30px; font-weight: bold; cursor: pointer;
+    box-shadow: 0 4px 10px rgba(255,152,0,0.3); transition: all 0.3s; margin: 4px;
+  }
+  button:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255,152,0,0.4); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  
+  #log {
+    height: 280px; overflow-y: auto; background: rgba(255,248,240,0.9);
+    padding: 15px; border-radius: 15px; font-family: 'Chiron GoRound TC', serif;
+    line-height: 1.8; border: 2px dashed #ffab91;
+  }
+  .log-entry {
+    margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dotted #ffccbc;
+    opacity: 0; animation: fadein 1s forwards;
+  }
+  @keyframes fadein { from {opacity:0; transform:translateY(10px);} to {opacity:1; transform:none;} }
+  
+  .inventory { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 10px; }
+  .item {
+    background: rgba(200,230,255,0.4); padding: 8px; border-radius: 12px;
+    text-align: center; font-size: 0.9em; border: 1px solid #90caf9;
+  }
+  .potions { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-top: 10px; }
+  .potion { background: rgba(255,200,230,0.5); border: 1px solid #f48fb1; }
+  
+  #cauldron {
+    width: 100%; height: 180px; background: #424242; border-radius: 50% / 20%;
+    position: relative; overflow: hidden; margin: 20px 0;
+  }
+  #cauldron::before {
+    content: ""; position: absolute; inset: 15px;
+    background: linear-gradient(to bottom, #97d171, #344728);
+    border-radius: 50% / 20%; animation: bubble 6s infinite;
+  }
+  @keyframes bubble { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  
+  .gold { color: #ff8f00; font-weight: bold; }
+  .recipe-list { font-size: 0.85em; line-height: 1.5; max-height: 120px; overflow-y: auto; }
+  .save-status { font-size: 0.9em; color: #4caf50; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>文字魔藥店</h1>
+    <div style="margin-top:15px;">
+      <span style="margin:0 20px;">金幣：<span id="gold" class="gold">50</span> G</span>
+      <span style="margin:0 20px;">日數：<span id="day">1</span></span>
+      <span style="margin:0 20px;">聲望：<span id="fame">0</span> ✦</span>
+    </div>
+    <div>
+      <button onclick="saveGame()">💾 手動存檔</button>
+      <button onclick="loadGame()">📂 讀取存檔</button>
+      <button onclick="clearSave()">🗑️ 清除存檔</button>
+      <span id="saveStatus" class="save-status" style="display:none;">已自動存檔！</span>
+    </div>
+  </header>
+
+  <div class="game-area">
+    <!-- 左：野外探索 -->
+    <div class="panel">
+      <h2>野外採集 ✿</h2>
+      <p>今天要去哪裡探險呢？</p>
+      <button onclick="explore('forest')">🌲 翠綠森林</button>
+      <button onclick="explore('cave')">⛰️ 幽暗礦山</button>
+      <button onclick="explore('lake')">🌊 寧靜湖畔</button>
+      <button onclick="explore('meadow')">🌼 花草平原</button>
+      
+      <h3>背包</h3>
+      <div id="inventory" class="inventory"></div>
+    </div>
+
+    <!-- 中：鍊金鍋爐 -->
+    <div class="panel">
+      <h2>鍊金鍋爐 ✨</h2>
+      <div id="cauldron"></div>
+      <p>把素材拖進鍋裡試試看吧！</p>
+      <button onclick="brew()">開始熬煮</button>
+      <button onclick="clearCauldron()">清空鍋子</button>
+      
+      <h3>已知配方</h3>
+      <div id="recipes" class="recipe-list"></div>
+      
+      <h3>藥水庫存</h3>
+      <div id="potionsList" class="potions"></div>
+    </div>
+
+    <!-- 右：店舖經營 & 日誌 -->
+    <div class="panel">
+      <h2>今日委託</h2>
+      <div id="quest"></div>
+      <button onclick="nextDay()">🌅 迎接新的一天</button>
+      
+      <h2>冒險日誌</h2>
+      <div id="log"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 遊戲資料
+let game = {
+  gold: 50,
+  day: 1,
+  fame: 0,
+  inventory: {},
+  cauldron: [],
+  potions: {}
+};
+
+const materials = {
+  forest: ["月光草","藍精靈菇","癒合花瓣","毒沼蘑菇"],
+  cave: ["紅礦晶","紫水晶","螢光石","蝙蝠翅膀"],
+  lake: ["星露水","人魚鱗片","水蓮","火蜥蜴尾"],
+  meadow: ["獨角獸毛","龍息草","彩虹花","幸運四葉草"]
+};
+
+const recipesData = {
+  "藍精靈菇月光草": {name:"小治療藥水", price:30, ingredients: ["藍精靈菇", "月光草"]},
+  "火蜥蜴尾紅礦晶": {name:"火焰藥水", price:60, ingredients: ["火蜥蜴尾", "紅礦晶"]},
+  "星露水獨角獸毛": {name:"幸運藥水", price:120, ingredients: ["星露水", "獨角獸毛"]},
+  "紫水晶龍息草": {name:"隱形藥水", price:200, ingredients: ["紫水晶", "龍息草"]},
+  "水蓮幸運四葉草": {name:"速度藥水", price:80, ingredients: ["水蓮", "幸運四葉草"]},
+  "火蜥蜴尾癒合花瓣": {name:"力量藥水", price:100, ingredients: ["火蜥蜴尾", "癒合花瓣"]},
+  "毒沼蘑菇蝙蝠翅膀": {name:"毒藥", price:50, ingredients: ["毒沼蘑菇", "蝙蝠翅膀"]},
+  "人魚鱗片螢光石": {name:"解毒藥", price:70, ingredients: ["人魚鱗片", "螢光石"]},
+  "彩虹花龍息草": {name:"愛情藥水", price:150, ingredients: ["彩虹花", "龍息草"]}
+};
+
+// === 豐富的故事文字 ===
+const exploreStories = {
+  forest: [
+    "陽光從樹葉縫隙灑下，你發現一株閃著銀光的月光草！",
+    "小兔子帶路，領你找到藏在樹根下的藍精靈菇～",
+    "一隻樹精對你眨眼，送給你一片癒合花瓣作為謝禮。",
+    "差點踩到毒沼蘑菇！幸好及時跳開，還是摘了下來。",
+    "聽見遠處有小精靈在唱歌，心情變得好棒！",
+    "風吹過，樹葉沙沙作響，你輕輕哼著歌採了${item}。"
+  ],
+  cave: [
+    "頭燈照到牆上閃亮的紅礦晶，好漂亮！",
+    "蝙蝠從頭頂飛過，你還是勇敢地敲下紫水晶。",
+    "螢光石像星星一樣發光，把整個洞窟照得夢幻極了～",
+    "聽見滴水聲，循聲找到一小片蝙蝠翅膀。",
+    "洞窟深處有微弱的光，挖開後竟然是${item}！",
+    "礦車吱吱作響，你開心地把${item}裝進背包。"
+  ],
+  lake: [
+    "湖面像鏡子一樣平靜，水蓮在微風中搖曳。",
+    "一尾人魚從水面探頭，對你笑了笑，送上閃亮的鱗片！",
+    "火蜥蜴在岸邊曬太陽，你輕手輕腳地拿走它的尾巴尖。",
+    "撈起一瓶清澈的星露水，裡面好像有小星星在游～",
+    "湖邊開滿了水蓮，你挑了最漂亮的那朵。",
+    "夕陽把湖水染成粉橘色，你帶著${item}滿足地回家。"
+  ],
+  meadow: [
+    "一隻獨角獸從遠處跑過，留下一撮閃亮的毛！",
+    "彩虹花在陽光下換了七種顏色，好神奇！",
+    "風吹過草原，四葉草在腳邊跳舞，你撿起一株幸運的。",
+    "龍息草散發淡淡的煙霧，像小龍在打噴嚏一樣可愛。",
+    "躺在草地上看雲朵，醒來時發現身邊多了${item}。",
+    "蝴蝶圍著你飛舞，最後停在${item}上，像是送給你的禮物。"
+  ]
+};
+
+const brewSuccess = {
+  "小治療藥水": ["藥水散發出柔和的綠光，像森林的呼吸一樣溫暖～","瓶子裡有小精靈在飛舞，治療藥水完成啦！","聞起來有青草香，喝了肯定傷口一秒就好。","鍋子咕嚕咕嚕後，冒出心形泡泡，太可愛了！"],
+  "火焰藥水": ["火焰在瓶中跳舞，像關著一隻小火龍！","好熱好熱！小心拿哦，威力超強的火焰藥水誕生！","瓶身變得暖呼呼，拿在手上像抱著小太陽。","最後一秒還噴出小火花，帥氣極了！"],
+  "幸運藥水": ["瓶裡的液體像彩虹一樣轉圈圈，喝了肯定好運爆棚！","有金光閃閃的小星星在裡面游來游去～","搖一搖會發出叮叮噹噹的幸運聲音！","獨角獸在夢裡對你微笑，幸運藥水完成！"],
+  "隱形藥水": ["藥水漸漸變透明，連瓶子都不見了！好神奇！","喝下去一定會像風一樣消失不見～","最後一滴落入瓶中，整個鍋子都隱形了三秒！","拿在手上會忘記它在哪裡，超好玩的隱形藥水！"],
+  "速度藥水": ["液體像閃電一樣流動，喝了腳步會變得飛快！","瓶子周圍有小風在旋轉，速度藥水大成功～","咕嚕一聲，冒出藍色煙霧，超速感滿點！","想像兔子一樣奔跑，成品完美！"],
+  "力量藥水": ["肌肉鼓起的紅色光芒，力量爆發啦！","瓶子變得沉甸甸的，裡面充滿了巨力～","火紅泡泡破裂，力量藥水閃耀誕生！","一喝就能舉起大石頭，超強！"],
+  "毒藥": ["綠色毒霧瀰漫，連瓶蓋都吱吱作響…小心！","變成會蠕動的液體，毒性超猛的傑作！","小骷髏頭浮現，毒藥完成，壞壞的感覺～","聞起來超酸，保證一滴見效！"],
+  "解毒藥": ["清澈金光閃閃，像陽光一樣溫柔的解毒劑！","泡泡變成小盾牌，完美抵擋一切毒！","人魚在瓶中微笑，解毒藥水療癒全場～","最後一泡冒出花朵，超治癒！"],
+  "愛情藥水": ["粉紅心心泡泡亂飛，愛情藥水太浪漫了！","瓶子散發玫瑰香，喝了會墜入愛河～","彩虹與心形交織，甜蜜滿分！","小丘比特眨眼，愛情之力覺醒！"]
+};
+
+const brewFail = [
+  "變成一團紫色黏黏的泥巴，還對你吐舌頭…",
+  "發出超級臭的味道！窗外的貓頭鷹都飛走了！",
+  "轟！鍋子小爆炸，滿屋子彩色煙霧三天才散。",
+  "變成會跳的青蛙果凍，蹦蹦跳跳逃出窗外…",
+  "冒出一堆小泡泡，每個泡泡都在說「失敗啦～」",
+  "整鍋變成黑色，還長出小觸手對你揮手！",
+  "突然唱起走調的歌，唱完就消失了…",
+  "變成一灘彩虹色水漬，在地板上畫了個笑臉。"
+];
+
+const questSuccess = [
+  "冒險者喝下藥水，傷口瞬間癒合，對你深深一鞠躬！",
+  "客人開心到轉圈圈，還多給了你10枚金幣小費～",
+  "貴族小姐說這是她喝過最棒的藥水，聲望上升啦！",
+  "盜賊偷偷對你比了個讚，然後帥氣地消失在夜色中。",
+  "法師大讚你的手藝，答應下次介紹朋友來！",
+  "劍士揮舞武器試效，興奮地說要天天來買！"
+];
+
+const newDayStories = [
+  "陽光從窗戶灑進來，門口的風鈴叮叮噹噹響著迎接新的一天。",
+  "貓頭鷹帶著一封新的委託信飛來，新的冒險開始啦！",
+  "店門口開了一朵從沒看過的小花，好像在跟你說早安。",
+  "烤麵包的香味飄進屋內，今天也會是美好的一天～",
+  "小精靈在窗臺跳舞，灑下閃亮的光粉為你加油！",
+  "遠處傳來冒險者們的笑聲，又是充滿希望的一天！"
+];
+
+const materialStories = {
+  "月光草": [
+    "月光草的葉面閃著銀色光痕，像是月神留下的筆跡。",
+    "你彎下腰時，月光草搖曳了一下，像是在提醒你把它帶走。"
+  ],
+  "藍精靈菇": [
+    "藍精靈菇冒出淡淡光暈，彷彿正悄悄呼吸。",
+    "你碰到的瞬間，藍精靈菇短短亮了一下，好像被嚇到的小生物。"
+  ],
+  "癒合花瓣": [
+    "花瓣散發著柔軟暖意，你的手指被溫柔包覆了一下。",
+    "輕觸它時，微光從花心綻開，像是在示意你帶走它的力量。"
+  ],
+  "毒沼蘑菇": [
+    "毒沼蘑菇搖晃著，散出一股奇妙的酸甜氣味。",
+    "你小心摘起時，它像是「啵」地叫了一聲。"
+  ],
+
+  "紅礦晶": [
+    "紅礦晶在暗處卻發出強烈光芒，像藏著小火焰。",
+    "你敲下它時，礦晶邊緣冒出一絲熱氣。"
+  ],
+  "紫水晶": [
+    "紫水晶折射出溫柔光線，像夜空的一角掉落。",
+    "岩壁震動了一下，紫水晶像順從地滑入你手心。"
+  ],
+  "螢光石": [
+    "螢光石的柔光照亮你的指尖，像在向你撒歡。",
+    "它安靜又溫暖，彷彿喜歡被你握著。"
+  ],
+  "蝙蝠翅膀": [
+    "翅膀邊緣仍有微微的魔力跳動。",
+    "你拿起時，彷彿聽見遠處蝙蝠的小小啼聲。"
+  ],
+
+  "星露水": [
+    "瓶中的露水映出微小星光，像裝著一片夜空。",
+    "露水在搖晃時產生銀色漣漪，十分神秘。"
+  ],
+  "人魚鱗片": [
+    "鱗片在陽光下閃閃發亮，像是海浪碎裂的瞬間。",
+    "你拿起時，它像是輕輕震動了一下。"
+  ],
+  "水蓮": [
+    "水蓮散發淡淡香氣，像湖面清晨的空氣。",
+    "你把它從水面摘下時，水波輕拍你的手指。"
+  ],
+  "火蜥蜴尾": [
+    "尾巴尾端仍殘留微弱熱度，小心點。",
+    "你碰到時，它輕輕彈了一下，像在反抗。"
+  ],
+
+  "獨角獸毛": [
+    "柔軟細緻的毛髮上閃著純白光點，如夢似幻。",
+    "毛端帶著一股祝福般的暖意。"
+  ],
+  "龍息草": [
+    "龍息草散出細細煙霧，像小龍的呼吸。",
+    "煙霧繚繞你的指尖，讓人心情變得神祕。"
+  ],
+  "彩虹花": [
+    "花瓣隨光線變換色彩，美得讓人捨不得摘下。",
+    "你握住時，花瓣像在手中跳動。"
+  ],
+  "幸運四葉草": [
+    "這片四葉草比其他的更翠綠，像是自己走到你手邊的。",
+    "你撿起它時，微風剛好吹過，彷彿在祝福你。"
+  ]
+};
+
+// === 存檔功能 ===
+function saveGame() {
+  localStorage.setItem('potionShopSave', JSON.stringify(game));
+  showSaveStatus('已手動存檔！');
+}
+
+function loadGame() {
+  const saved = localStorage.getItem('potionShopSave');
+  if (saved) {
+    game = JSON.parse(saved);
+    updateAll();
+    addLog('從存檔中喚醒了魔藥店！一切如昨～');
+    showSaveStatus('已讀取存檔！');
+  } else {
+    addLog('沒有找到存檔…從頭開始新冒險吧！');
+  }
+}
+
+function clearSave() {
+  localStorage.removeItem('potionShopSave');
+  addLog('存檔已清除！店舖回歸最初的模樣～');
+  location.reload();
+}
+
+function showSaveStatus(msg) {
+  const status = document.getElementById('saveStatus');
+  status.textContent = msg;
+  status.style.display = 'inline';
+  setTimeout(() => status.style.display = 'none', 3000);
+}
+
+function autoSave() {
+  saveGame();
+}
+
+// === 其他函式 ===
+function addLog(text) {
+  const log = document.getElementById('log');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `✎ 第${game.day}天・${text}`;
+  log.prepend(entry);
+  setTimeout(() => log.scrollTop = 0, 100);
+}
+
+function updateGold() { document.getElementById('gold').textContent = game.gold; }
+function updateDay() { document.getElementById('day').textContent = game.day; }
+function updateFame() { document.getElementById('fame').textContent = game.fame; }
+
+function updateInventory() {
+  const inv = document.getElementById('inventory');
+  inv.innerHTML = '';
+  let count = Object.values(game.inventory).reduce((a,b)=>a+b,0);
+  if (count > 25) addLog("背包快滿了！多賣點藥水換空間吧～");
+  
+  for (let item in game.inventory) {
+    if (game.inventory[item] > 0) {
+      const div = document.createElement('div');
+      div.className = 'item';
+      div.textContent = item + " × " + game.inventory[item];
+      div.draggable = true;
+      div.ondragstart = e => e.dataTransfer.setData("text", item);
+      inv.appendChild(div);
+    }
+  }
+}
+
+function updatePotions() {
+  const list = document.getElementById('potionsList');
+  list.innerHTML = '';
+  for (let potion in game.potions) {
+    if (game.potions[potion] > 0) {
+      const div = document.createElement('div');
+      div.className = 'potion item';
+      div.textContent = potion + " × " + game.potions[potion];
+      list.appendChild(div);
+    }
+  }
+}
+
+function updateRecipes() {
+  const rec = document.getElementById('recipes');
+  rec.innerHTML = '';
+  for (let key in recipesData) {
+    const recipe = recipesData[key];
+    const [mat1, mat2] = recipe.ingredients.sort(); // 按字母順序顯示
+    rec.innerHTML += `• ${mat1} + ${mat2} → ${recipe.name} (+${recipe.price}G)<br>`;
+  }
+}
+
+function updateAll() {
+  updateGold();
+  updateDay();
+  updateFame();
+  updateInventory();
+  updatePotions();
+}
+
+// 拖曳放入鍋子
+document.getElementById('cauldron').ondragover = e => e.preventDefault();
+document.getElementById('cauldron').ondrop = e => {
+  e.preventDefault();
+  const item = e.dataTransfer.getData("text");
+  if (game.inventory[item] > 0) {
+    game.inventory[item]--;
+    if (game.inventory[item] === 0) delete game.inventory[item];
+    game.cauldron.push(item);
+    addLog(`把「${item}」輕輕丟進了鍋子…咕嚕咕嚕，開始冒泡囉～`);
+    updateInventory();
+  }
+};
+
+function explore(area) {
+  const names = {forest: "翠綠森林", cave: "幽暗礦山", lake: "寧靜湖畔", meadow: "花草平原"};
+  const list = materials[area];
+  const item = list[Math.floor(Math.random()*list.length)];
+  game.inventory[item] = (game.inventory[item]||0) + 1;
+  
+   // 1. 原本的地點故事
+  let areaStories = exploreStories[area];
+  let areaText = areaStories[Math.floor(Math.random()*areaStories.length)].replace(/\$\{item\}/g, item);
+
+  // 2. 新增的材料專屬故事（兩個其中之一）
+  let matStories = materialStories[item] || [];
+  let matText = "";
+  if (matStories.length > 0) {
+    matText = matStories[Math.floor(Math.random()*matStories.length)];
+  }
+  // 3. 合併成同一則日誌（不破壞現有格式）
+  let finalText = areaText;
+  if (matText) finalText += " " + matText;
+
+  addLog(finalText);
+  updateInventory();
+}
+
+function brew() {
+  if (game.cauldron.length < 2) {
+    addLog("鍋子裡的素材太少，只聽到寂寞的咕嚕聲…");
+    return;
+  }
+  // 按字母順序排序素材，忽略投入順序
+  const key = game.cauldron.sort().join("");
+  if (recipesData[key]) {
+    const potion = recipesData[key];
+    game.potions[potion.name] = (game.potions[potion.name]||0) + 1;
+    const lines = brewSuccess[potion.name] || ["神秘藥水誕生了！效果未知但超漂亮～"];
+    addLog(lines[Math.floor(Math.random()*lines.length)]);
+    updatePotions();
+  } else {
+    addLog(brewFail[Math.floor(Math.random()*brewFail.length)]);
+    game.gold = Math.max(0, game.gold - 10);
+    updateGold();
+  }
+  game.cauldron = [];
+}
+
+function clearCauldron() {
+  if (game.cauldron.length === 0) {
+    addLog("鍋子已經空空的啦～像新的一樣乾淨！");
+  } else {
+    game.cauldron = [];
+    addLog("把鍋子裡的東西全部倒回大自然…小魚說謝謝你哦～");
+  }
+}
+
+function generateQuest() {
+  const quests = [
+    {text:"年輕劍士受傷了，需要治療藥水", need:"小治療藥水", reward:40},
+    {text:"老法師要對付冰龍，想要火焰藥水", need:"火焰藥水", reward:80},
+    {text:"小偷公會在找隱形藥水", need:"隱形藥水", reward:250},
+    {text:"貴族小姐明天要參加舞會，想要幸運藥水", need:"幸運藥水", reward:150},
+    {text:"盜賊需要速度藥水逃跑", need:"速度藥水", reward:90},
+    {text:"大力士要力量藥水挑戰巨獸", need:"力量藥水", reward:120},
+    {text:"刺客公會訂購毒藥", need:"毒藥", reward:60},
+    {text:"中毒的騎士急需解毒藥", need:"解毒藥", reward:85},
+    {text:"戀愛中的精靈要愛情藥水", need:"愛情藥水", reward:180}
+  ];
+  const q = quests[Math.floor(Math.random()*quests.length)];
+  document.getElementById('quest').innerHTML = `
+    <p><strong>${q.text}</strong><br>
+    要求：${q.need} ×1<br>
+    報酬：${q.reward} G</p>
+    <button onclick="completeQuest('${q.need}',${q.reward})">交付藥水</button>
+  `;
+}
+
+function completeQuest(potion, reward) {
+  if ((game.potions[potion]||0) > 0) {
+    game.potions[potion]--;
+    game.gold += reward;
+    game.fame += 1;
+    addLog(questSuccess[Math.floor(Math.random()*questSuccess.length)]);
+    updateGold(); 
+    updateFame();
+    updatePotions();
+  } else {
+    addLog("哎呀…還沒有做出客人要的藥水呢，明天要加緊煮哦！");
+  }
+  generateQuest();
+}
+
+function nextDay() {
+  game.day++;
+  addLog(newDayStories[Math.floor(Math.random()*newDayStories.length)]);
+  generateQuest();
+  autoSave();
+  updateDay();
+}
+
+// 初始化
+function init() {
+  const saved = localStorage.getItem('potionShopSave');
+  if (saved) {
+    if (confirm('發現存檔！是否讀取繼續遊戲？（否則從頭開始）')) {
+      loadGame();
+    } else {
+      localStorage.removeItem('potionShopSave');
+    }
+  }
+  updateRecipes();
+  updateAll();
+  generateQuest();
+  addLog("今天也會有新的冒險者來委託吧…加油！你的魔藥店越來越熱鬧囉～");
+  autoSave();
+}
+init();
+</script>
+</body>
+</html>
